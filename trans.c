@@ -18,21 +18,34 @@ void textFile(FILE *readPtr);
 void updateRecord(FILE *fPtr);
 void newRecord(FILE *fPtr);
 void deleteRecord(FILE *fPtr);
+void displayAccounts(FILE *fPtr);
 
 int main(int argc, char *argv[])
 {
     FILE *cfPtr;         // credit.dat file pointer
     unsigned int choice; // user's choice
 
-    // fopen opens the file; exits if file cannot be opened
+    // fopen opens the file; if it doesn't exist, create it and initialize with blank records
     if ((cfPtr = fopen("credit.dat", "rb+")) == NULL)
     {
-        printf("%s: File could not be opened.\n", argv[0]);
-        exit(-1);
+        printf("File \"credit.dat\" could not be opened. Creating a new file...\n");
+        if ((cfPtr = fopen("credit.dat", "wb+")) == NULL)
+        {
+            printf("Error: Could not create file.\n");
+            exit(-1);
+        }
+        
+        // initialize 100 empty records
+        struct clientData blankClient = {0, "", "", 0.0};
+        for (unsigned int i = 1; i <= 100; ++i)
+        {
+            fwrite(&blankClient, sizeof(struct clientData), 1, cfPtr);
+        }
+        rewind(cfPtr); // go back to the beginning of the file
     }
 
     // enable user to specify action
-    while ((choice = enterChoice()) != 5)
+    while ((choice = enterChoice()) != 6)
     {
         switch (choice)
         {
@@ -51,6 +64,10 @@ int main(int argc, char *argv[])
         // delete existing record
         case 4:
             deleteRecord(cfPtr);
+            break;
+        // display all accounts to console
+        case 5:
+            displayAccounts(cfPtr);
             break;
         // display if user does not select valid choice
         default:
@@ -211,8 +228,35 @@ unsigned int enterChoice(void)
                  "2 - update an account\n"
                  "3 - add a new account\n"
                  "4 - delete an account\n"
-                 "5 - end program\n? ");
+                 "5 - display all accounts to console\n"
+                 "6 - end program\n? ");
 
-    scanf("%u", &menuChoice); // receive choice from user
+    // receive choice from user and handle invalid input
+    if (scanf("%u", &menuChoice) != 1) {
+        while (getchar() != '\n'); // clear invalid input from buffer
+        menuChoice = 0;            // set to invalid choice
+    }
     return menuChoice;
 } // end function enterChoice
+
+// display all accounts to console
+void displayAccounts(FILE *readPtr)
+{
+    int result;
+    struct clientData client = {0, "", "", 0.0};
+
+    rewind(readPtr); // sets pointer to beginning of file
+    printf("\n%-6s%-16s%-11s%10s\n", "Acct", "Last Name", "First Name", "Balance");
+
+    // print all records from random-access file to console
+    while (!feof(readPtr))
+    {
+        result = fread(&client, sizeof(struct clientData), 1, readPtr);
+
+        // print single record
+        if (result != 0 && client.acctNum != 0)
+        {
+            printf("%-6u%-16s%-11s%10.2f\n", client.acctNum, client.lastName, client.firstName, client.balance);
+        } // end if
+    }     // end while
+} // end function displayAccounts
